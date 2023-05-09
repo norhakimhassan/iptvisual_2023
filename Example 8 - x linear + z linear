@@ -1,0 +1,40 @@
+#Example 8 - x linear + z linear
+
+mat_dimensions = (x_dis_range.size, z_dis_range.size)
+m_mat = np.zeros(mat_dimensions, dtype=np.float64)
+total_m = m_mat.size
+counter = 0
+start_time = time.time()
+for i, delta_x in enumerate(x_dis_range):
+    for j, delta_z  in enumerate(z_dis_range):
+        filepath = write_winding_def(32, delta_x, delta_z, 0, 0, 0, 0)
+        outfile = os.path.splitext(filepath)[0]+'.out'
+        outlmatname = outfile+'.lmat'
+        if not os.path.exists(outlmatname):
+            cmd = '../../build/ivsolver '+filepath+' ' + outfile
+            os.popen(cmd).read()
+        counter += 1
+        elapsed_time = time.time() - start_time
+        estimated_time_left = (total_m-counter)*(elapsed_time/counter)
+        with open(outlmatname) as file:
+            matrix = [[float(num) for num in line.split()] for line in file]
+        matrix = np.array(matrix)
+        kappa = matrix[0, 1]/matrix[0, 0]
+        print(f"{counter}/{total_m} NoS={32}, Δx={delta_x:.3f}m, Δy={delta_z:.3f}m, kappa={kappa:.3f}, elapsed time: {elapsed_time:.1f}s, est. time left: {estimated_time_left:.1f}s")
+        m_mat[i, j] = kappa
+
+x, z = np.meshgrid(x_dis_range, z_dis_range)
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+print(x.shape)
+print(z.shape)
+print(m_mat.shape)
+surf = ax.plot_surface(x,z,m_mat.T, cmap='viridis')
+
+ax.set_xlabel('Δx(m)')
+ax.set_ylabel('Δz(m)')
+ax.set_zlabel('κ')
+ax.set_title('coupling coeffient vs x and z displacement')
+
+plt.show()
