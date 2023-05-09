@@ -1,0 +1,38 @@
+#Example 6 - plot coupling coefficient vs. z-axis misalignment angles over number of spokes
+
+mat_dimensions = (len(NoS), z_rot_range.size)
+m_mat = np.zeros(mat_dimensions, dtype=np.float64)
+total_m = m_mat.size
+counter = 0
+start_time = time.time()
+for i, i_nos in enumerate(NoS):
+    for j, z_angle in enumerate(z_rot_range):
+        #filepath = write_winding_def(i_nos, 0, 0, 0, 0, 0, z_angle)
+        filepath = write_winding_def(i_nos, 0, 0, 0, z_angle, 0, 0)
+        outfile = os.path.splitext(filepath)[0]+'.out'
+        outlmatname = outfile+'.lmat'
+        if not os.path.exists(outlmatname):
+            cmd = '../../build/ivsolver '+filepath+' ' + outfile
+            os.popen(cmd).read()
+        counter += 1
+        elapsed_time = time.time() - start_time
+        estimated_time_left = (total_m-counter)*(elapsed_time/counter)
+        with open(outfile+'.lmat') as file:
+            matrix = [[float(num) for num in line.split()] for line in file]
+        matrix = np.array(matrix)
+        kappa = matrix[0, 1]/matrix[0, 0]
+        print(f"{counter}/{total_m} NoS={i_nos}, z_angle={z_angle:.0f} deg, kappa={kappa:.3f}, elapsed time: {elapsed_time:.1f}s, est. time left: {estimated_time_left:.1f}s")
+        m_mat[i, j] = kappa
+
+for i in range(m_mat.shape[0]):
+    plt.plot(m_mat[i], label=f'{NoS[i]} spokes')
+rounded_label = np.round(z_rot_range, decimals=0)
+plt.xticks(range(m_mat.shape[1]), rounded_label)
+
+plt.legend()
+
+plt.xlabel('z_angle(degree)')
+plt.ylabel('κ')
+plt.title('z-axis rotation vs. coupling coefficient')
+
+plt.show()
