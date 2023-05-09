@@ -1,0 +1,99 @@
+#Example 13 - plot x & y axes angular displacement vs. Output Power
+
+mat_dimensions = (x_rot_range.size, y_rot_range.size, z_rot_range.size) #
+m_mat = np.zeros(mat_dimensions, dtype=np.float64)
+total_m = m_mat.size
+counter = 0
+start_time = time.time()
+for i, x_angle in enumerate(x_rot_range):
+    for j, y_angle  in enumerate(y_rot_range):
+        for l, z_angle in enumerate(z_rot_range): #
+            filepath = write_winding_def(8, 0, 0, 0, x_angle, y_angle, z_angle)
+            outfile = os.path.splitext(filepath)[0]+'.out'
+            outlmatname = outfile+'.lmat'
+        if not os.path.exists(outlmatname):
+            cmd = '../../build/ivsolver '+filepath+' ' + outfile
+            os.popen(cmd).read()
+        counter += 1
+        elapsed_time = time.time() - start_time
+        estimated_time_left = (total_m-counter)*(elapsed_time/counter)
+        with open(outlmatname) as file:
+            matrix = [[float(num) for num in line.split()] for line in file]
+        matrix = np.array(matrix)
+        kappa = matrix[0, 1]/matrix[0, 0]
+        #print(f"{counter}/{total_m} NoS={8},  x_angle={x_angle:.3f}deg, y_angle={y_angle:.3f}deg, z_angle={z_angle:.3f}deg,P_out={P_out:.3f}, elapsed time: {elapsed_time:.1f}s, est. time left: {estimated_time_left:.1f}s")
+        #print(f"Coil_Resistance={R0:.3f}, Coil Length={coil_length:.3f}, Vp={Vp:.3f}, P_in={P_in:.3f}, P_out={P_out:.3f}, V_out={V_out:.3f}, Eff={eff:.3f}%")
+        # m_mat[i, j] = kappa
+        
+        # declaration of variables 
+        M=1.4525e-06
+        L1=63.15e-06
+        L2=63.15e-06
+        C1=1e-9
+        k=M/(math.sqrt(L1*L2))
+        w=1/(math.sqrt(L1*C1))
+        
+        wire_cs=0.0005
+        wire_segments_length= 15704 #circular or 32 spokes
+        wire_segments_length_8 = 15363 #octagon or 8 spokes 
+        wire_segments_length_3 =24234 #triangle or 3 spokes
+        wire_segments_length_4 = 18999 #square or 4 spokes
+        wire_segments_length_5 = 17554 #pentagon or 5 spokes 
+        wire_segments_length_6 =16879 #hexagon or 6 spokes
+        wire_segments_length_16 =0
+        coil_length=wire_segments_length_8*2*wire_cs
+        R0 = (1.7E-8) * coil_length / (math.pi * wire_cs * wire_cs)
+        # R0=1
+        # R0=0.10192664527468398
+        R_load=10
+        Vdc=40
+        Vp=(4/math.pi)*Vdc
+        # Vp=40
+    
+        # Vp=(R0+(w*w*M*M*Ip))/(R0+R_load)
+        Ip=Vp/(R0+((w*w*M*M)/(R0+R_load)))
+        
+        Is=(w*M*Ip)/(R0+R_load)
+       
+        P_in=0.5*Vp*Ip
+        P_out=0.5*(Is*Is)*R_load
+        # pout=vout^2/R_load
+        V_out=(math.sqrt(P_out*R_load))
+        eff=(P_out/P_in)*100
+        print(f"Coil_Resistance={R0:.3f}, Coil Length={coil_length:.3f}, Vp={Vp:.3f}, P_in={P_in:.3f}, P_out={P_out:.3f}, V_out={V_out:.3f}, Eff={eff:.2f}%")
+        m_mat[i, j, l] = P_out
+
+x, y, z = np.meshgrid(x_rot_range, y_rot_range, z_rot_range)
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+print(x.shape)
+print(y.shape)
+print(z.shape)
+print(m_mat.shape)
+# surf = ax.plot_surface(x,y,z, m_mat.T, cmap='viridis')
+
+
+tmp_planes = ax.zaxis._PLANES 
+ax.zaxis._PLANES = ( tmp_planes[2], tmp_planes[3], 
+                     tmp_planes[0], tmp_planes[1], 
+                     tmp_planes[4], tmp_planes[5])
+ax.set_xlabel('x_angle(degree)')
+ax.set_ylabel('y_angle(degree)')
+
+# ax.zaxis.set_rotate_label(False)  # disable automatic rotation
+ax.set_zlabel('z_angle(degree)')
+ax.zaxis.set_label_position('top')
+plt.title('Angular displacement about x-,y-,z-axes vs. Output Power', y=-0.1)
+
+
+c = m_mat.T
+img = ax.scatter(x, y, z, c=c, cmap='BrBG')
+clb=fig.colorbar(img)
+# clb = plt.colorbar(img)
+clb.ax.set_title('P_out (W)')
+
+
+# YlOrRd
+
+plt.show()
